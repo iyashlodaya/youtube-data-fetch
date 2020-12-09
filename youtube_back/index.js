@@ -2,7 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { authorize, callback, saveExcelSheet } = require("./controllers/auth");
 const app = express();
-
+const cors = require("cors");
 // DB CONNECTION
 mongoose
   .connect("mongodb://localhost/youtube", {
@@ -16,7 +16,7 @@ mongoose
 
 const port = process.env.PORT || 8000;
 app.set("view engine", "ejs");
-
+app.use(cors());
 app.get("/", authorize);
 
 app.get("/callback", callback);

@@ -9,7 +9,7 @@ const Video = require("../models/video");
 const CLIENT_ID = oAuth2Credentials.web.client_id;
 const CLIENT_SECRET = oAuth2Credentials.web.client_secret;
 const REDIRECT_URL = oAuth2Credentials.web.redirect_uris[0];
-const PLAYLIST_ID = "PLzMcBGfZo4-mFu00qxl0a67RhjjZj3jXm";
+const PLAYLIST_ID = "PLmGElG-9wxc9Us6IK6Qy-KHlG_F3IS6Q9";
 
 const oAuth2Client = new google.auth.OAuth2(
   CLIENT_ID,
@@ -20,6 +20,7 @@ let scopes = "https://www.googleapis.com/auth/youtube.readonly";
 let authenticated = false;
 
 exports.authorize = (req, res) => {
+  
   if (!authenticated) {
     //   generate Auth URL
     console.log("not authenticated");
@@ -37,9 +38,9 @@ exports.authorize = (req, res) => {
         id: PLAYLIST_ID,
         part: ["snippet", "contentDetails"],
       },
-      (err, response) => {
-        if (err) {
-          res.json({ error: `Error Found in Playlist: ${err}` });
+      (error, response) => {
+        if (error) {
+          res.json({ error: `Error Found in Playlist: ${error}` });
         }
 
         var playlistTitle = response.data.items[0].snippet.title;
@@ -56,9 +57,9 @@ exports.authorize = (req, res) => {
           videoCount: noOfVideos,
         });
         // save playlist
-        playlist.save((err, plist) => {
-          if (err) {
-            console.log(err);
+        playlist.save((error, plist) => {
+          if (error) {
+            console.log(error);
           }
           console.log("SAVED SUCCESFULLY");
         });
@@ -70,9 +71,9 @@ exports.authorize = (req, res) => {
             playlistId: PLAYLIST_ID,
             maxResults: 50,
           },
-          (err, pItems) => {
-            if (err) {
-              console.log("ERROR OCCURED :->" + err);
+          (error, pItems) => {
+            if (error) {
+              console.log("ERROR OCCURED :->" + error);
             }
 
             pItems.data.items.forEach((item, index = 0) => {
@@ -83,9 +84,9 @@ exports.authorize = (req, res) => {
                   auth: oAuth2Client,
                   id: item.contentDetails.videoId,
                 },
-                (err, duration) => {
-                  if (err) {
-                    console.log("Error in Video!" + err);
+                (error, duration) => {
+                  if (error) {
+                    console.log("Error in Video!" + error);
                   } else {
                     duration.data.items.forEach((dur) => {
                       videoDuration = dur.contentDetails.duration.split(
@@ -101,9 +102,9 @@ exports.authorize = (req, res) => {
                         videoDuration: videoDuration,
                       });
 
-                      video.save((err, videoResponse) => {
-                        if (err) {
-                          console.log("Error Detected" + err);
+                      video.save((error, videoResponse) => {
+                        if (error) {
+                          console.log("Error Detected" + error);
                         }
 
                         console.log(
@@ -127,8 +128,8 @@ exports.authorize = (req, res) => {
 exports.callback = (req, res) => {
   const code = req.query.code;
   if (code) {
-    oAuth2Client.getToken(code, (err, tokens) => {
-      if (err) {
+    oAuth2Client.getToken(code, (error, tokens) => {
+      if (error) {
         console.log("ERROR FOUND!!", err);
       } else {
         console.log("Successfully Authenticated");
