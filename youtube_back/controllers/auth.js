@@ -1,4 +1,5 @@
 const oAuth2Credentials = require("../credentials.json");
+require('dotenv').config()
 const xlsx = require("xlsx");
 const Playlist = require("../models/playlist");
 const SheetData = require("../models/sheetdata");
@@ -6,17 +7,16 @@ const google = require("googleapis").google;
 const Video = require("../models/video");
 
 // Handle authentication
-const CLIENT_ID = oAuth2Credentials.web.client_id;
-const CLIENT_SECRET = oAuth2Credentials.web.client_secret;
-const REDIRECT_URL = oAuth2Credentials.web.redirect_uris[0];
-const PLAYLIST_ID = "PLmGElG-9wxc9Us6IK6Qy-KHlG_F3IS6Q9";
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const REDIRECT_URL = process.env.REDIRECT_URI;
 
 const oAuth2Client = new google.auth.OAuth2(
   CLIENT_ID,
   CLIENT_SECRET,
   REDIRECT_URL
 );
-let scopes = "https://www.googleapis.com/auth/youtube.readonly";
+const SCOPES = "https://www.googleapis.com/auth/youtube.readonly";
 let authenticated = false;
 
 exports.authorize = (req, res) => {
@@ -26,21 +26,21 @@ exports.authorize = (req, res) => {
     console.log("not authenticated");
     var authUrl = oAuth2Client.generateAuthUrl({
       access_type: "offline",
-      scope: scopes,
+      scope: SCOPES,
     });
-    res.render("index", { url: authUrl });
+    return res.send({url:authUrl, authenticated:false});
   } else {
-    
+    let videoList = [];
     var service = google.youtube("v3");
     service.playlists.list(
       {
         auth: oAuth2Client,
-        id: PLAYLIST_ID,
+        id: req.body.playlistId,
         part: ["snippet", "contentDetails"],
       },
       (error, response) => {
         if (error) {
-          res.json({ error: `Error Found in Playlist: ${error}` });
+          return res.json({ error: `Error Found in Playlist: ${error}` });
         }
 
         var playlistTitle = response.data.items[0].snippet.title;
@@ -50,7 +50,7 @@ exports.authorize = (req, res) => {
         var noOfVideos = response.data.items[0].contentDetails.itemCount;
 
         var playlist = new Playlist({
-          id: PLAYLIST_ID,
+          id: req.body.playlistId,
           playlistTitle: playlistTitle,
           playlistDescription: playlistDescription,
           playlistThumbnail: playlistThumbnail,
@@ -61,21 +61,21 @@ exports.authorize = (req, res) => {
           if (error) {
             console.log(error);
           }
-          console.log("SAVED SUCCESFULLY");
+          console.log("SAVED SUCCESFULLY - \n" + plist);
         });
 
         service.playlistItems.list(
           {
             part: ["snippet", "contentDetails"],
             auth: oAuth2Client,
-            playlistId: PLAYLIST_ID,
-            maxResults: 50,
+            playlistId: req.body.playlistId,
+            maxResults: 100,
           },
           (error, pItems) => {
             if (error) {
               console.log("ERROR OCCURED :->" + error);
             }
-
+            
             pItems.data.items.forEach((item, index = 0) => {
               var videoDuration;
               service.videos.list(
@@ -101,22 +101,23 @@ exports.authorize = (req, res) => {
                         videoUrl: `https://www.youtube.com/watch?v=${item.contentDetails.videoId}`,
                         videoDuration: videoDuration,
                       });
-
+                      
                       video.save((error, videoResponse) => {
                         if (error) {
                           console.log("Error Detected" + error);
                         }
-
                         console.log(
                           "Success Saving the Video!!",
-                          videoResponse.videoId
+                          videoResponse.videoTitle
                         );
                       });
                     });
                   }
                 }
               );
+              videoList.push(item.snippet)
             });
+          res.send({videoList});
           }
         );
       }
@@ -139,23 +140,4 @@ exports.callback = (req, res) => {
       }
     });
   }
-};
-
-exports.saveExcelSheet = (req, res) => {
-  const wb = xlsx.readFile("data.xlsx");
-  const ws = wb.Sheets["Sheet1"];
-  const data = xlsx.utils.sheet_to_json(ws);
-  data.forEach((item) => {
-    console.log(item);
-    var sheet = new SheetData(item);
-    sheet.save((err, resp) => {
-      if (err) {
-        console.log("Error in saving sheet data to DB!");
-      }
-      res.json({resp});
-
-    });
-    
-
-  });
 };
